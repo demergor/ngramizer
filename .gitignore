@@ -1,1 +1,4 @@
 bin/
+
+resources/analyzed
+resources/normalized
