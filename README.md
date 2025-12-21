@@ -34,7 +34,7 @@
 			- "
 			- (
 			- )
-			- -
+			- \-
 
     - numeric: *only digits*
 
