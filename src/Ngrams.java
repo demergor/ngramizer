@@ -1,6 +1,8 @@
+import java.io.BufferedWriter;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.ArrayList;
@@ -31,6 +33,59 @@ public final class Ngrams {
     };
   }
 
+  public void computeAsymmetries() {
+    StringBuilder sb = new StringBuilder();
+    int size = getNgramFrequencies().size();
+    assert(size == getNgramAsymmetries().size());
+    for (int i = 0; i < size; ++i) {
+      Map<String, Integer> curFreqs;
+      Map<String, Integer> curAsyms;
+      switch(i) {
+        case 0: 
+          curFreqs = biFreqs; 
+          curAsyms = biAsyms;
+          break;
+        case 1: 
+          curFreqs = triFreqs; 
+          curAsyms = triAsyms;
+          break;
+        case 2: 
+          curFreqs = skipFreqs; 
+          curAsyms = skipAsyms;
+          break;
+        case 3: 
+          curFreqs = spaceFreqs; 
+          curAsyms = spaceAsyms;
+          break;
+        default: throw new RuntimeException("Invalid amount of maps to populate!");
+      }
+
+      for (Map.Entry<String, Integer> entry : curFreqs.entrySet()) {
+        sb.setLength(0);
+        String key = entry.getKey();
+        String revKey = sb.append(key).reverse().toString();
+        if (curAsyms.containsKey(key) || curAsyms.containsKey(revKey)) {
+          continue;
+        }
+        int value = entry.getValue();
+        Integer revKeyValue = curFreqs.get(revKey);
+        if (revKeyValue == null && value != 0) {
+          curAsyms.put(key, value);
+          continue;
+        }
+        assert(revKeyValue != null);
+        if (revKeyValue == value) {
+          continue;
+        }
+        if (revKeyValue > value) {
+          curAsyms.put(revKey, revKeyValue - value);
+        } else {
+          curAsyms.put(key, value - revKeyValue);
+        }
+      }
+    }
+  }
+
   public static <T> LinkedHashMap<String, Map<T, Integer>> sort(Map<String, Map<T, Integer>> maps) {
     LinkedHashMap<String, Map<T, Integer>> sorted = new LinkedHashMap<>();
     for (Map.Entry<String, Map<T, Integer>> map : maps.entrySet()) {
@@ -50,7 +105,40 @@ public final class Ngrams {
     return sorted;
   }
 
-  public static <T> void print(
+  public void print() throws IOException {
+    Path analyzedOutputPath = outputPath.resolve("analyzed");
+    Files.createDirectories(analyzedOutputPath);
+    Path outputFilePath = analyzedOutputPath.resolve("frequencies.txt");
+    try (BufferedWriter writer = 
+        Files.newBufferedWriter(
+          outputFilePath,
+          StandardOpenOption.CREATE,
+          StandardOpenOption.TRUNCATE_EXISTING
+        )
+    ) {
+      printMaps(writer, sort(getLetterFrequencies()));
+    }
+
+    try (BufferedWriter writer = 
+        Files.newBufferedWriter(outputFilePath, StandardOpenOption.APPEND)
+    ) {
+      writer.newLine();
+      printMaps(writer, sort(getNgramFrequencies()));
+    }
+
+    outputFilePath = analyzedOutputPath.resolve("asymmetries.txt");
+    try (BufferedWriter writer = 
+        Files.newBufferedWriter(
+          outputFilePath,
+          StandardOpenOption.CREATE,
+          StandardOpenOption.TRUNCATE_EXISTING
+        )
+    ) {
+      printMaps(writer, sort(getNgramAsymmetries()));
+    }
+  }
+
+  public static <T> void printMaps(
       Writer writer,
       Map<String, Map<T, Integer>> maps
       ) throws IOException {

@@ -1,11 +1,13 @@
-import java.io.BufferedWriter;
 import java.io.IOException;
-import java.io.FileWriter;
-import java.nio.file.Files;
+import java.lang.InterruptedException;
 import java.nio.file.Path;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.ArrayList;
+import java.util.List;
 
 class Analyzer {
   public static void run(Path inputPath, Ngrams ngrams, ExecutorService exeService) 
@@ -23,12 +25,23 @@ class Analyzer {
         e.printStackTrace();
       }
     }, exeService);
+    List<Future<?>> tasks = new ArrayList<>();
     while (!future.isDone() || !reader.queueEmpty()) {
       String line = reader.poll();
       if (line != null) {
-        exeService.submit(() -> {
-          analyzeLine(line, ngrams);
-        });
+        tasks.add(exeService.submit(() -> {
+          analyzeLineFreqs(line, ngrams);
+        }));
+      }
+    }
+    for (Future<?> task : tasks) {
+      try {
+        task.get();
+      } catch (InterruptedException | ExecutionException e) {
+        System.err.printf(
+            "Error waiting for analyzation threads to finish: %s",
+            e.getMessage()
+        );
       }
     }
     exeService.shutdown();
@@ -41,10 +54,11 @@ class Analyzer {
       e.printStackTrace();
     } 
 
-    print(ngrams);
+    ngrams.computeAsymmetries();
+    ngrams.print();
   }
 
-  public static void analyzeLine(String line, Ngrams ngrams) {
+  public static void analyzeLineFreqs(String line, Ngrams ngrams) {
     String[] words = line.split(" ");
     char lastLetter = '\0';
     StringBuilder sb = new StringBuilder();
@@ -54,16 +68,16 @@ class Analyzer {
       }
       int len = word.length();
       for (int i = 0; i < len; ++i) {
+        sb.setLength(0);
         char cur = word.charAt(i);
         Ngrams.increment(ngrams.getLetterFreqs(), cur);
-        sb.setLength(0);
         if (i + 1 == len) {
           lastLetter = cur;
           Ngrams.increment(ngrams.getLastFreqs(), cur);
           break;
         } else if (i == 0) {
           Ngrams.increment(ngrams.getFirstFreqs(), cur);
-          if (lastLetter != '\0') {
+          if (lastLetter != '\0' && lastLetter != cur) {
             Ngrams.increment(
                 ngrams.getSpaceFreqs(),
                 sb.append(lastLetter).append(cur).toString()
@@ -77,39 +91,22 @@ class Analyzer {
         }
         sb.append(word.charAt(i + 1));
         Ngrams.increment(ngrams.getBiFreqs(), sb.toString());
-        if (i + 2 >= len || word.charAt(i + 2) == cur) {
+        if (i + 2 >= len) {
           continue;
         }
         sb.append(word.charAt(i + 2));
+        assert(sb.length() == 3);
+        if (
+            cur == sb.charAt(2) ||
+            sb.charAt(1) == sb.charAt(2)
+        ) {
+          continue;
+        }
         Ngrams.increment(ngrams.getTriFreqs(), sb.toString());
         sb.delete(1, 2);
         Ngrams.increment(ngrams.getSkipFreqs(), sb.toString());
+        sb.setLength(0);
       }
-    }
-  }
-
-  public static void print(Ngrams ngrams) throws IOException {
-    Path analyzedOutputPath = ngrams.getOutputPath().resolve("analyzed");
-    Files.createDirectories(analyzedOutputPath);
-    Path outputFilePath = analyzedOutputPath.resolve("frequencies.txt");
-    try (BufferedWriter writer = new BufferedWriter(
-          new FileWriter(outputFilePath.toFile())
-    )) {
-      Ngrams.print(writer, Ngrams.sort(ngrams.getLetterFrequencies()));
-    }
-
-    try (BufferedWriter writer = new BufferedWriter(
-          new FileWriter(outputFilePath.toFile(), true)
-    )) {
-      writer.newLine();
-      Ngrams.print(writer, Ngrams.sort(ngrams.getNgramFrequencies()));
-    }
-
-    outputFilePath = analyzedOutputPath.resolve("asymmetries.txt");
-    try (BufferedWriter writer = new BufferedWriter(
-          new FileWriter(outputFilePath.toFile())
-    )) {
-      // Ngrams.print(writer, Ngrams.sort(ngrams.getNgramAsymmetries()));
     }
   }
 }
