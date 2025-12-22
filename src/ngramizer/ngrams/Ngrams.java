@@ -1,3 +1,5 @@
+package ngramizer.ngrams;
+
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -23,7 +25,8 @@ public final class Ngrams {
   public Ngrams(String outputPathString, String inputPathString, String regex) {
     this(outputPathString, inputPathString);
     this.regex = switch (regex.toLowerCase()) {
-      case "standard" -> "[^a-zA-Z0-9äöüÄÖÜß.,!?;:\"()\\- ]+";
+      case "standard" -> 
+        "[^a-zA-Z0-9äöüÄÖÜß.,!?;:\"'()\\-\\\\€@#$%&/*|~^°<>+\\[\\]{}_´` ]+";
       case "alphabetic" -> "[^a-zA-ZäöüÄÖÜß ]+";
       case "numeric" -> "[^0-9 ]+";
       case "alphanumeric" -> "[^a-zA-Z0-9äöüÄÖÜß ]+";

@@ -13,6 +13,9 @@
 - output path (directory)
 - regex (optional)
 
+*Example call from the terminal:*
+**java jar ngramizer /path/of/output/directory /path/of/input/file "\[abc\]+"**
+
 ***
 
 *Regex:*
@@ -22,20 +25,9 @@
 
 - pre-specified regex patterns:
     - standard: *alphanumeric, but with standard punctuation symbols*
-    - alphabetic: *only letters in the German alphabet*
-        - included symbols: 
-            - .
-			- ,
-			- !
-			- ?
-			- ;
-			- :
-			- \
-			- "
-			- (
-			- )
-			- \-
+        - included symbols: . , ! ? ; : \ " ( ) \[ \] { } \- € @ # $ % & * | / ~ ^ ° < > + _ ` ´
 
+    - alphabetic: *only letters in the German alphabet*
     - numeric: *only digits*
 
     - alphanumeric: *only digits and letters in the German alphabet*
@@ -43,6 +35,8 @@
     - unicode: *unicode letters and digits (without emojis or symbols)*
 
     - nonletters: *everything except letters from the German alphabet*
+
+*Note: spaces are not removed in any of the pre-specified regex patterns* 
 
 ***
 
@@ -56,6 +50,7 @@
 ***
 
 **Work in progress:**
+- Consider doing the repeated-letter-elimination on result-basis, not on normalization-basis
 
 ***
 
@@ -63,8 +58,4 @@
 - Support for input directories, as opposed to only files (Reader.java)
 
 - Analyzation and output of more general metadata (line count, words) 
-    (Analyzer.java, Ngrams.java)
-
-- Rewrite analyzation so that it doesn't skip doubled letters, 
-    but also provide new pre-specified regex patterns to avoid doubled letters
     (Analyzer.java, Ngrams.java)

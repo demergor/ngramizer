@@ -1,3 +1,5 @@
+package ngramizer.normalizer;
+
 import java.io.BufferedWriter;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -10,10 +12,14 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.regex.Pattern;
 
+import ngramizer.io.IO;
+import ngramizer.io.Reader;
+import ngramizer.ngrams.Ngrams;
+
 public final class Normalizer {
-  public static Path run(Ngrams ngrams, ExecutorService exeService) 
-    throws IOException
-  {
+  public static Path run(
+      Ngrams ngrams, ExecutorService exeService, boolean removeRepetitions
+  ) throws IOException {
     if (ngrams.getRegex() == null) {
       return null;
     }
@@ -37,7 +43,7 @@ public final class Normalizer {
       if (line != null) {
         exeService.submit(() -> {
           try {
-            queue.put(normalizeLine(line, pattern));
+            queue.put(normalizeLine(line, pattern, removeRepetitions));
           } catch (InterruptedException e) {
             System.err.printf(
                 "Error populating BlockingQueue<String> in normalizer:",
@@ -59,12 +65,16 @@ public final class Normalizer {
     return normalizedOutputPath;
   }
 
-  public static String normalizeLine(String line, Pattern pattern) {
-    return EXTRA_SPACES.matcher(
-        pattern
-        .matcher(line)
-        .replaceAll("")
-    ).replaceAll(" ").trim().toLowerCase();
+  public static String normalizeLine(
+      String line, Pattern pattern, boolean removeRepetitions
+  ) {
+    String output = pattern.matcher(line).replaceAll("").toLowerCase();
+    if (removeRepetitions) {
+      output = REPEATED_CHARS.matcher(output).replaceAll("$1");
+    } else {
+      output = EXTRA_SPACES.matcher(output).replaceAll(" ");
+    }
+    return output.trim();
   }
 
   public static void print(
@@ -78,5 +88,6 @@ public final class Normalizer {
     }
   }
 
-  public static final Pattern EXTRA_SPACES = Pattern.compile("\\s{2,}");
+  private static final Pattern EXTRA_SPACES = Pattern.compile("\\s{2,}");
+  private static final Pattern REPEATED_CHARS = Pattern.compile("(.)\\1+");
 }

@@ -1,4 +1,4 @@
-bin/
+out/
 
-resources/analyzed
-resources/normalized
+resources/analyzed/
+resources/normalized/

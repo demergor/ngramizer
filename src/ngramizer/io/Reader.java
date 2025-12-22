@@ -1,4 +1,5 @@
 // TODO: See if I can implement an input directory rather than only files
+package ngramizer.io;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -7,8 +8,8 @@ import java.nio.file.Files;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 
-class Reader {
-  Reader(Path inputPath) {
+public final class Reader {
+  public Reader(Path inputPath) {
     this.inputPath = inputPath;
   }
 

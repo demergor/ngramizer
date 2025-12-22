@@ -1,3 +1,5 @@
+package ngramizer.analyzer;
+
 import java.io.IOException;
 import java.lang.InterruptedException;
 import java.nio.file.Path;
@@ -9,7 +11,10 @@ import java.util.concurrent.TimeUnit;
 import java.util.ArrayList;
 import java.util.List;
 
-class Analyzer {
+import ngramizer.ngrams.Ngrams;
+import ngramizer.io.Reader;
+
+public final class Analyzer {
   public static void run(Path inputPath, Ngrams ngrams, ExecutorService exeService) 
     throws IOException
   {
@@ -86,9 +91,6 @@ class Analyzer {
           }
         }
         sb.append(cur);
-        if (word.charAt(i + 1) == cur) {
-          continue;
-        }
         sb.append(word.charAt(i + 1));
         Ngrams.increment(ngrams.getBiFreqs(), sb.toString());
         if (i + 2 >= len) {
@@ -96,12 +98,6 @@ class Analyzer {
         }
         sb.append(word.charAt(i + 2));
         assert(sb.length() == 3);
-        if (
-            cur == sb.charAt(2) ||
-            sb.charAt(1) == sb.charAt(2)
-        ) {
-          continue;
-        }
         Ngrams.increment(ngrams.getTriFreqs(), sb.toString());
         sb.delete(1, 2);
         Ngrams.increment(ngrams.getSkipFreqs(), sb.toString());
