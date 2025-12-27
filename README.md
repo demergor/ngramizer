@@ -52,10 +52,10 @@
 **Work in progress:**
 - Consider doing the repeated-letter-elimination on result-basis, not on normalization-basis
 
+- Refinement of the miscellaneous output (Analyzer.java, Ngrams.java)
+    - Currently, lines and non-empty lines are the same because normalization happens before
+
 ***
 
 **Not yet implemented/Planned features:** 
 - Support for input directories, as opposed to only files (Reader.java)
-
-- Analyzation and output of more general metadata (line count, words) 
-    (Analyzer.java, Ngrams.java)

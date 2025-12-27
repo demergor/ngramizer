@@ -64,13 +64,20 @@ public final class Analyzer {
   }
 
   public static void analyzeLineFreqs(String line, Ngrams ngrams) {
+    ngrams.incrementLineCount();
     String[] words = line.split(" ");
+    if (words.length == 0) {
+      return;
+    }
+
+    ngrams.incrementNonEmptyLineCount();
     char lastLetter = '\0';
     StringBuilder sb = new StringBuilder();
     for (String word : words) {
       if (word.isEmpty()) {
         continue;
       }
+      Ngrams.increment(ngrams.getWordFreqs(), word);
       int len = word.length();
       for (int i = 0; i < len; ++i) {
         sb.setLength(0);

@@ -13,10 +13,12 @@ import java.util.List;
 import java.util.Map;
 import java.io.Writer;
 
+import ngramizer.io.IO;
+
 public final class Ngrams {
   public Ngrams(String outputPathString, String inputPathString) {
-    inputPath = Path.of(inputPathString);
-    outputPath = Path.of(outputPathString);
+    inputPath = IO.expand(Path.of(inputPathString));
+    outputPath = IO.expand(Path.of(outputPathString));
     if (Files.isRegularFile(outputPath)) {
       throw new RuntimeException("Specified output path must be a directory!");
     }
@@ -139,6 +141,28 @@ public final class Ngrams {
     ) {
       printMaps(writer, sort(getNgramAsymmetries()));
     }
+    outputFilePath = analyzedOutputPath.resolve("word_frequencies.txt");
+    try (BufferedWriter writer = 
+        Files.newBufferedWriter(
+          outputFilePath,
+          StandardOpenOption.CREATE,
+          StandardOpenOption.TRUNCATE_EXISTING
+        )
+    ) {
+      Map<String, Map<String, Integer>> wordsMap = new LinkedHashMap<>();
+      wordsMap.put("word frequencies", wordFreqs);
+      Ngrams.printMaps(writer, sort(wordsMap));
+    }
+    outputFilePath = analyzedOutputPath.resolve("miscellaneous.txt");
+    try (BufferedWriter writer =
+        Files.newBufferedWriter(
+          outputFilePath,
+          StandardOpenOption.CREATE,
+          StandardOpenOption.TRUNCATE_EXISTING
+        )
+    ) {
+      printMisc(writer);
+    }
   }
 
   public static <T> void printMaps(
@@ -158,6 +182,23 @@ public final class Ngrams {
       }
       sb.append(newline);
     }
+  }
+
+  public void printMisc(BufferedWriter writer) throws IOException {
+    String newline = System.lineSeparator();
+    StringBuilder sb = new StringBuilder();
+    sb.append("analyzed path: ").append(inputPath.toString());
+    sb.append(newline).append(newline);
+    sb.append("number of analyzed lines: ").append(numLines);
+    sb.append(newline);
+    sb.append("number of analyzed non-empty lines: ").append(numNonEmptyLines);
+    sb.append(newline);
+    assert(numLines >= numNonEmptyLines);
+    sb.append("number of analyzed empty lines: ").append(numLines - numNonEmptyLines);
+    sb.append(newline).append(newline);
+    sb.append("regex used: ");
+    sb.append(regex.isEmpty() ? "none" : regex);
+    writer.write(sb.toString());
   }
 
   public Map<String, Map<Character, Integer>> getLetterFrequencies() {
@@ -192,6 +233,14 @@ public final class Ngrams {
 
   public static void increment(ConcurrentMap<Character, Integer> map, Character key) {
     map.compute(key, (k, v) -> (v == null) ? 1 : v + 1);
+  }
+
+  public void incrementLineCount() {
+    ++numLines;
+  }
+
+  public void incrementNonEmptyLineCount() {
+    ++numNonEmptyLines;
   }
 
   public Path getOutputPath() {
@@ -268,7 +317,7 @@ public final class Ngrams {
     triFreqs = new ConcurrentHashMap<>(),
     skipFreqs = new ConcurrentHashMap<>(),
     spaceFreqs = new ConcurrentHashMap<>(),
-    wordFreqs;
+    wordFreqs = new ConcurrentHashMap<>();
   private ConcurrentHashMap<String, Integer>
     biAsyms = new ConcurrentHashMap<>(),
     triAsyms = new ConcurrentHashMap<>(),
