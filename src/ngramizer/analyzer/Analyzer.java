@@ -15,13 +15,17 @@ import ngramizer.ngrams.Ngrams;
 import ngramizer.io.Reader;
 
 public final class Analyzer {
-  public static void run(Path inputPath, Ngrams ngrams, ExecutorService exeService) 
-    throws IOException
+  public static void run(
+    Path inputPath,
+    Ngrams ngrams,
+    ExecutorService exeService,
+    boolean shouldPrintCombinatorial
+  ) throws IOException
   {
     Reader reader = new Reader(inputPath);
     CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
       try {
-        reader.populate();
+        reader.populate(exeService);
       } catch (IOException | InterruptedException e) {
         System.err.printf(
             "Error reading input file into analyzer: %s\n", 
@@ -60,24 +64,22 @@ public final class Analyzer {
     } 
 
     ngrams.computeAsymmetries();
-    ngrams.print();
+    ngrams.print(shouldPrintCombinatorial);
   }
 
   public static void analyzeLineFreqs(String line, Ngrams ngrams) {
-    ngrams.incrementLineCount();
     String[] words = line.split(" ");
     if (words.length == 0) {
       return;
     }
 
-    ngrams.incrementNonEmptyLineCount();
     char lastLetter = '\0';
     StringBuilder sb = new StringBuilder();
     for (String word : words) {
       if (word.isEmpty()) {
         continue;
       }
-      Ngrams.increment(ngrams.getWordFreqs(), word);
+
       int len = word.length();
       for (int i = 0; i < len; ++i) {
         sb.setLength(0);

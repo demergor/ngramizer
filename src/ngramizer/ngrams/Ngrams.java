@@ -8,6 +8,7 @@ import java.nio.file.StandardOpenOption;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -22,10 +23,16 @@ public final class Ngrams {
     if (Files.isRegularFile(outputPath)) {
       throw new RuntimeException("Specified output path must be a directory!");
     }
+    regex = "";
   }
 
   public Ngrams(String outputPathString, String inputPathString, String regex) {
     this(outputPathString, inputPathString);
+    if (regex == null) {
+      this.regex = "";
+      return;
+    }
+
     this.regex = switch (regex.toLowerCase()) {
       case "standard" -> 
         "[^a-zA-Z0-9äöüÄÖÜß.,!?;:\"'()\\-\\\\€@#$%&/*|~^°<>+\\[\\]{}_´` ]+";
@@ -69,29 +76,28 @@ public final class Ngrams {
         sb.setLength(0);
         String key = entry.getKey();
         String revKey = sb.append(key).reverse().toString();
+
         if (curAsyms.containsKey(key) || curAsyms.containsKey(revKey)) {
           continue;
         }
+
         int value = entry.getValue();
         Integer revKeyValue = curFreqs.get(revKey);
-        if (revKeyValue == null && value != 0) {
-          curAsyms.put(key, value);
-          continue;
+
+        if (revKeyValue == null) {
+          revKeyValue = 0;
         }
+
         assert(revKeyValue != null);
-        if (revKeyValue == value) {
-          continue;
-        }
-        if (revKeyValue > value) {
-          curAsyms.put(revKey, revKeyValue - value);
-        } else {
-          curAsyms.put(key, value - revKeyValue);
-        }
+        curAsyms.put(revKey, revKeyValue - value);
+        curAsyms.put(key, value - revKeyValue);
       }
     }
   }
 
-  public static <T> LinkedHashMap<String, Map<T, Integer>> sort(Map<String, Map<T, Integer>> maps) {
+  public static <T> LinkedHashMap<String, Map<T, Integer>> sort(
+      Map<String, Map<T, Integer>> maps
+  ) {
     LinkedHashMap<String, Map<T, Integer>> sorted = new LinkedHashMap<>();
     for (Map.Entry<String, Map<T, Integer>> map : maps.entrySet()) {
       if (map.getValue() == null || map.getValue().isEmpty()) {
@@ -99,7 +105,8 @@ public final class Ngrams {
             String.format("Error sorting maps: %s Map is empty!", map.getKey())
         );
       }
-      List<Map.Entry<T, Integer>> entryList = new ArrayList<>(map.getValue().entrySet());
+      List<Map.Entry<T, Integer>> entryList =
+        new ArrayList<>(map.getValue().entrySet());
       entryList.sort((a, b) -> b.getValue().compareTo(a.getValue()));
       LinkedHashMap<T, Integer> temp = new LinkedHashMap<>();
       for (Map.Entry<T, Integer> entry : entryList) {
@@ -110,95 +117,155 @@ public final class Ngrams {
     return sorted;
   }
 
-  public void print() throws IOException {
+  public void print (boolean shouldPrintCombinatorial) throws IOException {
     Path analyzedOutputPath = outputPath.resolve("analyzed");
     Files.createDirectories(analyzedOutputPath);
-    Path outputFilePath = analyzedOutputPath.resolve("frequencies.txt");
-    try (BufferedWriter writer = 
-        Files.newBufferedWriter(
-          outputFilePath,
-          StandardOpenOption.CREATE,
-          StandardOpenOption.TRUNCATE_EXISTING
-        )
-    ) {
-      printMaps(writer, sort(getLetterFrequencies()));
-    }
+  
+    Path frequencyPath = analyzedOutputPath.resolve("frequencies");
+    Files.createDirectories(frequencyPath);
 
-    try (BufferedWriter writer = 
-        Files.newBufferedWriter(outputFilePath, StandardOpenOption.APPEND)
+    for (
+      Map.Entry<String, Map<Character, Integer>> entry :
+      sort(getLetterFrequencies()).entrySet()
     ) {
-      writer.newLine();
-      printMaps(writer, sort(getNgramFrequencies()));
-    }
+      String fileName = entry
+        .getKey()
+        .replaceAll("frequencies", "")
+        .replaceAll(" letter", "")
+        .trim() + ".txt";
+      Path outputFilePath = frequencyPath.resolve(fileName);
 
-    outputFilePath = analyzedOutputPath.resolve("asymmetries.txt");
-    try (BufferedWriter writer = 
-        Files.newBufferedWriter(
+      try (BufferedWriter writer = Files.newBufferedWriter(
           outputFilePath,
           StandardOpenOption.CREATE,
           StandardOpenOption.TRUNCATE_EXISTING
-        )
-    ) {
-      printMaps(writer, sort(getNgramAsymmetries()));
-    }
-    outputFilePath = analyzedOutputPath.resolve("word_frequencies.txt");
-    try (BufferedWriter writer = 
-        Files.newBufferedWriter(
-          outputFilePath,
-          StandardOpenOption.CREATE,
-          StandardOpenOption.TRUNCATE_EXISTING
-        )
-    ) {
-      Map<String, Map<String, Integer>> wordsMap = new LinkedHashMap<>();
-      wordsMap.put("word frequencies", wordFreqs);
-      Ngrams.printMaps(writer, sort(wordsMap));
-    }
-    outputFilePath = analyzedOutputPath.resolve("miscellaneous.txt");
-    try (BufferedWriter writer =
-        Files.newBufferedWriter(
-          outputFilePath,
-          StandardOpenOption.CREATE,
-          StandardOpenOption.TRUNCATE_EXISTING
-        )
-    ) {
-      printMisc(writer);
-    }
-  }
-
-  public static <T> void printMaps(
-      Writer writer,
-      Map<String, Map<T, Integer>> maps
-      ) throws IOException {
-    String newline = System.lineSeparator();
-    StringBuilder sb = new StringBuilder();
-    for (Map.Entry<String, Map<T, Integer>> map : maps.entrySet()) {
-      sb.append(map.getKey()).append(':');
-      sb.append(newline);
-      for (Map.Entry<T, Integer> entry : map.getValue().entrySet()) {
-        sb.append(entry.getKey()).append(" : ").append(entry.getValue());
-        sb.append(newline);
-        writer.write(sb.toString());
-        sb.setLength(0);
+      )) {
+        printMap(writer, entry.getValue());
       }
-      sb.append(newline);
+    }
+
+    for (
+      Map.Entry<String, Map<String, Integer>> entry : 
+      sort(getNgramFrequencies()).entrySet()
+    ) {
+      String fileName = entry.getKey().replaceAll("frequencies", "").trim() + ".txt";
+      Path outputFilePath = frequencyPath.resolve(fileName);
+
+      try (BufferedWriter writer = Files.newBufferedWriter(
+        outputFilePath,
+        StandardOpenOption.CREATE,
+        StandardOpenOption.TRUNCATE_EXISTING
+      )) {
+        printMap(writer, entry.getValue());
+      }
+    }
+
+    Path asymmetryPath = analyzedOutputPath.resolve("asymmetries");
+    Files.createDirectories(asymmetryPath);
+
+    for (
+      Map.Entry<String, Map<String, Integer>> entry : 
+      sort(getNgramAsymmetries()).entrySet()
+    ) { 
+      String fileName = entry.getKey().replaceAll("asymmetries", "").trim() + ".txt";
+      Path outputFilePath = asymmetryPath.resolve(fileName);
+
+      try (BufferedWriter writer = Files.newBufferedWriter(
+        outputFilePath,
+        StandardOpenOption.CREATE,
+        StandardOpenOption.TRUNCATE_EXISTING
+      )) {
+        printMap(writer, entry.getValue());
+      }
+    }
+
+    if (!shouldPrintCombinatorial) {
+      return;
+    }
+
+    Path combinatorialPath = frequencyPath.resolve("combinatorial");
+    Files.createDirectories(combinatorialPath);
+
+    for (
+      Map.Entry<String, Map<String, Integer>> entry : 
+      sort(getCombMaps(getNgramFrequencies())).entrySet()
+    ) {
+      String fileName = entry
+        .getKey()
+        .replaceAll("combinatorial", "")
+        .replaceAll("frequencies", "")
+        .trim() + 
+        ".txt";
+      Path outputFilePath = combinatorialPath.resolve(fileName);
+
+      try (BufferedWriter writer = Files.newBufferedWriter(
+        outputFilePath, 
+        StandardOpenOption.CREATE,
+        StandardOpenOption.TRUNCATE_EXISTING
+      )) {
+        printMap(writer, entry.getValue());
+      }
     }
   }
 
-  public void printMisc(BufferedWriter writer) throws IOException {
-    String newline = System.lineSeparator();
+  private static <T> void printMap(Writer writer, Map<T, Integer> map) throws IOException {
     StringBuilder sb = new StringBuilder();
-    sb.append("analyzed path: ").append(inputPath.toString());
-    sb.append(newline).append(newline);
-    sb.append("number of analyzed lines: ").append(numLines);
-    sb.append(newline);
-    sb.append("number of analyzed non-empty lines: ").append(numNonEmptyLines);
-    sb.append(newline);
-    assert(numLines >= numNonEmptyLines);
-    sb.append("number of analyzed empty lines: ").append(numLines - numNonEmptyLines);
-    sb.append(newline).append(newline);
-    sb.append("regex used: ");
-    sb.append(regex.isEmpty() ? "none" : regex);
-    writer.write(sb.toString());
+    for (Map.Entry<T, Integer> entry : map.entrySet()) {
+      sb.append(entry.getKey());
+      sb.append(" : ");
+      sb.append(entry.getValue());
+      sb.append(NEWLINE);
+
+      writer.write(sb.toString());
+      sb.setLength(0);
+    }
+  }
+
+  private static Map<String, Map<String, Integer>> getCombMaps(
+    Map<String, Map<String, Integer>> maps
+  ) throws IOException {
+    Map<String, Map<String, Integer>> combMaps = new LinkedHashMap<>();
+    for (Map.Entry<String, Map<String, Integer>> map : maps.entrySet()) {
+      Map <String, Integer> singleCombMap = new LinkedHashMap<>();
+      for (Map.Entry<String, Integer> entry : map.getValue().entrySet()) {
+        String ngram = entry.getKey();
+        if (combMaps.get(ngram) != null) {
+          continue;
+        }
+
+        int combValue = 0;
+        List<String> anagrams = new ArrayList<>();
+
+        for (Map.Entry<String, Integer> otherEntry : map.getValue().entrySet()) {
+          String otherNgram = otherEntry.getKey();
+          if (!anagrams(ngram, otherNgram)) {
+            continue;
+          }
+
+          boolean alreadyIncluded = false;
+          for (String s : anagrams) {
+            if (s.equals(otherNgram)) {
+              alreadyIncluded = true;
+              break;
+            }
+          }
+
+          if (!alreadyIncluded) {
+            anagrams.add(otherNgram);
+            combValue += otherEntry.getValue();
+          }
+        }
+
+        for (String s : anagrams) {
+          singleCombMap.put(s, combValue);
+        }
+      }
+
+      String combName = "combinatorial " + map.getKey();
+      combMaps.put(combName, singleCombMap);
+    }
+
+    return combMaps;
   }
 
   public Map<String, Map<Character, Integer>> getLetterFrequencies() {
@@ -233,14 +300,6 @@ public final class Ngrams {
 
   public static void increment(ConcurrentMap<Character, Integer> map, Character key) {
     map.compute(key, (k, v) -> (v == null) ? 1 : v + 1);
-  }
-
-  public void incrementLineCount() {
-    ++numLines;
-  }
-
-  public void incrementNonEmptyLineCount() {
-    ++numNonEmptyLines;
   }
 
   public Path getOutputPath() {
@@ -283,10 +342,6 @@ public final class Ngrams {
     return spaceFreqs;
   }
 
-  public ConcurrentMap<String, Integer> getWordFreqs() {
-    return wordFreqs;
-  }
-
   public ConcurrentMap<String, Integer> getBiAsyms() {
     return biAsyms;
   }
@@ -303,24 +358,39 @@ public final class Ngrams {
     return spaceAsyms;
   }
 
+  private static final String NEWLINE = System.lineSeparator();
   private Path outputPath;
   private Path inputPath;
-  String regex;
-  private int numLines;
-  private int numNonEmptyLines;
+  private String regex;
+
   private ConcurrentHashMap<Character, Integer> 
     letterFreqs = new ConcurrentHashMap<>(), 
     firstFreqs = new ConcurrentHashMap<>(),
     lastFreqs = new ConcurrentHashMap<>();
+
   private ConcurrentHashMap<String, Integer> 
     biFreqs = new ConcurrentHashMap<>(),
     triFreqs = new ConcurrentHashMap<>(),
     skipFreqs = new ConcurrentHashMap<>(),
-    spaceFreqs = new ConcurrentHashMap<>(),
-    wordFreqs = new ConcurrentHashMap<>();
+    spaceFreqs = new ConcurrentHashMap<>();
+
   private ConcurrentHashMap<String, Integer>
     biAsyms = new ConcurrentHashMap<>(),
     triAsyms = new ConcurrentHashMap<>(),
     skipAsyms = new ConcurrentHashMap<>(),
     spaceAsyms = new ConcurrentHashMap<>();
+
+  private static boolean anagrams(String s, String t) {
+    if (s.length() != t.length()) {
+      return false;
+    }
+
+    char[] sArr = s.toCharArray();
+    char[] tArr = t.toCharArray();
+
+    Arrays.sort(sArr);
+    Arrays.sort(tArr);
+
+    return Arrays.equals(sArr, tArr);
+  }
 }

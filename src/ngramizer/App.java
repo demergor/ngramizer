@@ -23,26 +23,29 @@ public final class App {
         case 2 -> new Ngrams(args[0], args[1]);
         case 3, 4 -> new Ngrams (args[0], args[1], args[2]);
         default -> throw new RuntimeException(
-            """
-            Invalid amount of arguments given! \
-            Expected: 
-            '<output path> 
-            [<input path>] 
-            [<exclusion regex>] 
-            [<remove repeating letters?>]'
-            """
+          """
+          Invalid amount of arguments given! \
+          Expected: 
+          '<output path> 
+          [<input path>] 
+          [<exclusion regex>] 
+          [<remove repeating letters?>]'
+          """
         );
       };
     }
+
     boolean removeRepetitions = false;
     if (args.length >= 4) {
       removeRepetitions = switch (args[3].toLowerCase()) {
-        case "true", "yes", "y" -> true;
+        case "true", "yes", "y", "1" -> true;
         default -> false;
       };
     }
+
     ExecutorService exeService = Executors.newCachedThreadPool();
     Path normalizedPath;
+
     try {
       normalizedPath = Normalizer.run(ngrams, exeService, removeRepetitions);
     } catch (IOException e) {
@@ -50,11 +53,13 @@ public final class App {
       e.printStackTrace();
       return;
     }
+
     try {
       Analyzer.run(
-          normalizedPath == null ? ngrams.getInputPath() : normalizedPath,
-          ngrams,
-          exeService
+        normalizedPath == null ? ngrams.getInputPath() : normalizedPath,
+        ngrams,
+        exeService,
+        true
       );
     } catch (IOException e) {
       System.err.printf("Error analyzing the input file: %s", e.getMessage());

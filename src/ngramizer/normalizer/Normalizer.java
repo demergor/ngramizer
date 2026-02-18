@@ -27,7 +27,7 @@ public final class Normalizer {
     Reader reader = new Reader(ngrams.getInputPath());
     CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
       try {
-        reader.populate();
+        reader.populate(exeService);
       } catch (IOException | InterruptedException e) {
         System.err.printf(
             "Error reading input file into normalizer: %s",
