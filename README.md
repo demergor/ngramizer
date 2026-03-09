@@ -21,8 +21,8 @@
 - regex (optional)
 - flag for multi-letter-instance removal, e.g. "he**ll**o" -> "he**l**o" (true/false, default false)
 
-*Example call from the terminal:*
-**java jar ngramizer /path/of/output/directory /path/of/input/file "\[abc\]+" true**
+*Example call from the terminal (called from path/to/ngramizer.jar):*
+**java -jar ngramizer /path/of/output/directory /path/of/input/file "\[abc\]+" true**
 
 ***
 
@@ -36,11 +36,14 @@
         - included symbols: . , ! ? ; : \ " ( ) \[ \] { } \- € @ # $ % & * | / ~ ^ ° < > + _ ` ´
 
     - alphabetic: *only letters in the German alphabet*
+
     - numeric: *only digits*
 
     - alphanumeric: *only digits and letters in the German alphabet*
 
     - unicode: *unicode letters and digits (without emojis or symbols)*
+
+    - nonnumeric: *like the preset "standard", just without digits*
 
     - nonletters: *everything except letters from the German alphabet*
 
@@ -67,4 +70,5 @@
 ***
 
 **Not yet implemented/Planned features:** 
+- Add a cap for how many different distinct characters it should process
 - Make combinatorial frequency calculation multithreaded as its combinatorial nature is expensive in computation

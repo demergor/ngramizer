@@ -34,12 +34,12 @@ public final class Ngrams {
     }
 
     this.regex = switch (regex.toLowerCase()) {
-      case "standard" -> 
-        "[^a-zA-Z0-9äöüÄÖÜß.,!?;:\"'()\\-\\\\€@#$%&/*|~^°<>+\\[\\]{}_´` ]+";
+      case "standard" -> "[^a-zA-Z0-9äöüÄÖÜß.,!?;:\"'()\\-\\\\€@#$%&/*|~^°<>+\\[\\]{}_´` ]+";
       case "alphabetic" -> "[^a-zA-ZäöüÄÖÜß ]+";
       case "numeric" -> "[^0-9 ]+";
       case "alphanumeric" -> "[^a-zA-Z0-9äöüÄÖÜß ]+";
       case "unicode" -> "[^\\p{L}\\p{N} ]+";
+      case "nonnumeric" -> "[^a-zA-ZäöüÄÖÜß.,!?;:\"'()\\-\\\\€@#$%&/*|~^°<>+\\[\\]{}_´` ]+";
       case "nonletters" -> "[a-zA-ZäöüÄÖÜß]+";
       default -> regex; 
     };

@@ -28,8 +28,9 @@ public final class App {
           Expected: 
           '<output path> 
           [<input path>] 
-          [<exclusion regex>] 
-          [<remove repeating letters?>]'
+          [<exclusion regex>]
+          [<remove repeating letters?>]
+          [<number of distinct letters> (not yet implemented)]'
           """
         );
       };
